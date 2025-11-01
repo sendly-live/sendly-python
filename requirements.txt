@@ -1,0 +1,8 @@
+# Core dependencies for Sendly Python SDK
+# These are the minimum requirements needed to use the SDK
+
+# HTTP library for API communication
+requests>=2.25.0
+
+# Type hints support for Python 3.7 compatibility
+typing-extensions>=3.7.4; python_version<"3.8"

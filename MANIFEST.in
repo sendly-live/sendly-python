@@ -1,0 +1,61 @@
+# MANIFEST.in - Specifies additional files to include in the distribution package
+
+# Include essential documentation files
+include README.md
+include CHANGELOG.md
+include LICENSE
+include CONTRIBUTING.md
+
+# Include package configuration files
+include setup.py
+include requirements.txt
+include requirements-dev.txt
+include pytest.ini
+include pyproject.toml
+include tox.ini
+
+# Include type hint marker
+include sendly/py.typed
+
+# Include example code and documentation
+recursive-include examples *.py
+recursive-include docs *.md *.rst *.txt
+
+# Include test files (for source distributions)
+recursive-include tests *.py
+recursive-include tests *.json *.yaml *.yml
+
+# Exclude unnecessary files
+exclude .gitignore
+exclude .pre-commit-config.yaml
+exclude Makefile
+
+# Exclude build artifacts and caches
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude __pycache__
+global-exclude .pytest_cache
+global-exclude .coverage
+global-exclude htmlcov
+global-exclude .mypy_cache
+global-exclude .tox
+global-exclude build
+global-exclude dist
+global-exclude *.egg-info
+
+# Exclude version control files
+global-exclude .git*
+global-exclude .hg*
+global-exclude .svn*
+
+# Exclude IDE and editor files
+global-exclude .vscode
+global-exclude .idea
+global-exclude *.swp
+global-exclude *.swo
+global-exclude *~
+
+# Exclude OS generated files
+global-exclude .DS_Store
+global-exclude Thumbs.db

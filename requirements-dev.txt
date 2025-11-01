@@ -1,0 +1,47 @@
+# Development dependencies for Sendly Python SDK
+# These dependencies are needed for development, testing, and building
+
+# Include core dependencies
+-r requirements.txt
+
+# Testing frameworks and tools
+pytest>=6.0.0                    # Main testing framework
+pytest-cov>=2.10.0              # Coverage reporting for pytest
+pytest-mock>=3.6.0              # Mock object integration for pytest
+responses>=0.18.0               # HTTP response mocking for requests library
+
+# Code quality and formatting tools
+black>=22.0.0                   # Code formatter (PEP 8 compliant)
+isort>=5.10.0                   # Import statement sorter
+flake8>=4.0.0                   # Linting and style checking
+mypy>=0.950                     # Static type checker
+
+# Additional linting plugins
+flake8-docstrings>=1.6.0       # Docstring style checking
+flake8-import-order>=0.18.1     # Import order checking
+flake8-bugbear>=22.0.0         # Additional bug and style checks
+
+# Documentation generation
+sphinx>=4.0.0                  # Documentation generator
+sphinx-rtd-theme>=1.0.0        # Read the Docs theme for Sphinx
+myst-parser>=0.18.0            # Markdown support for Sphinx
+
+# Build and packaging tools
+build>=0.8.0                   # Modern Python build tool (PEP 517/518)
+twine>=4.0.0                   # Tool for uploading packages to PyPI
+wheel>=0.37.0                  # Wheel format support
+setuptools>=45.0.0             # Package setup tools
+setuptools-scm>=6.0.0          # Version management from git tags
+
+# Development utilities
+pre-commit>=2.20.0             # Git hooks for code quality
+tox>=3.24.0                    # Testing across multiple Python versions
+bandit>=1.7.0                  # Security vulnerability scanner
+
+# Performance and profiling
+memory-profiler>=0.60.0        # Memory usage profiling
+line-profiler>=4.0.0           # Line-by-line profiling
+
+# Jupyter notebook support (for examples and experimentation)
+jupyter>=1.0.0                 # Jupyter notebook environment
+ipython>=7.0.0                 # Enhanced interactive Python shell
