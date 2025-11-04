@@ -35,14 +35,14 @@ from .constants import (
     get_success_magic_numbers,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 __author__ = "Sendly Team"
 __email__ = "support@sendly.live"
 
 __all__ = [
     # Main client
     'Sendly',
-    
+
     # Exceptions
     'SendlyError',
     'ValidationError',
@@ -50,7 +50,7 @@ __all__ = [
     'RateLimitError',
     'APIError',
     'NetworkError',
-    
+
     # Types
     'MessageType',
     'SMSRequest',
@@ -63,7 +63,7 @@ __all__ = [
     'StatsResponse',
     'LiveStatsResponse',
     'RateLimitStatusResponse',
-    
+
     # Sandbox constants and utilities
     'MAGIC_NUMBERS',
     'MAGIC_NUMBER_INFO',

@@ -136,18 +136,21 @@ class SMS:
                 country_code=routing_data.get('countryCode', '')
             )
 
-        # Extract cost (API returns string like "$0.00")
-        cost_str = data.get('cost', '$0.00')
+        # Extract cost (API can return string "$0.00", number 0, or dict)
+        cost_data = data.get('cost', 0)
         cost = None
-        if cost_str and isinstance(cost_str, str):
+        if isinstance(cost_data, str):
             # Parse cost string (e.g., "$0.00" -> 0.0)
-            cost_value = float(cost_str.replace('$', '').replace(',', ''))
+            cost_value = float(cost_data.replace('$', '').replace(',', ''))
             cost = CostInfo(amount=cost_value, currency='USD')
-        elif isinstance(cost_str, dict):
-            # Handle dict format if API changes
+        elif isinstance(cost_data, (int, float)):
+            # Handle numeric cost (e.g., 0 or 0.01)
+            cost = CostInfo(amount=float(cost_data), currency='USD')
+        elif isinstance(cost_data, dict):
+            # Handle dict format
             cost = CostInfo(
-                amount=cost_str.get('amount', 0.0),
-                currency=cost_str.get('currency', 'USD')
+                amount=cost_data.get('amount', 0.0),
+                currency=cost_data.get('currency', 'USD')
             )
 
         # Create response object

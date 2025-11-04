@@ -88,20 +88,6 @@ print(f"From: {response.from_}")
 print(f"Cost: ${response.cost.amount}")
 ```
 
-### Send MMS
-
-```python
-response = client.sms.send(
-    to='+14155552671',
-    text='Check out these images!',
-    media_urls=[
-        'https://example.com/image1.jpg',
-        'https://example.com/image2.png'
-    ],
-    subject='Photo Gallery'
-)
-```
-
 ### Message Types
 
 ```python
@@ -281,11 +267,9 @@ Sendly(
 ```python
 client.sms.send(
     to: str,
-    text: str = None,
+    text: str,
     from_: str = None,
     message_type: str = None,
-    media_urls: List[str] = None,
-    subject: str = None,
     webhook_url: str = None,
     webhook_failover_url: str = None,
     tags: List[str] = None
@@ -294,11 +278,9 @@ client.sms.send(
 
 **Parameters:**
 - `to` - Destination phone number (E.164 format)
-- `text` - Message text
+- `text` - Message text (required)
 - `from_` - Sender number (auto-selected if not provided)
 - `message_type` - Message type: `transactional`, `otp`, `marketing`, `alert`
-- `media_urls` - HTTPS URLs for MMS media (max 10)
-- `subject` - MMS subject line
 - `webhook_url` - HTTPS webhook URL for delivery notifications
 - `webhook_failover_url` - HTTPS backup webhook URL
 - `tags` - Message tags for analytics (max 20, 50 chars each)
