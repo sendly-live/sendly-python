@@ -4,7 +4,7 @@ Sendly SDK Error Classes
 Custom exceptions for different error scenarios.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .types import ApiErrorResponse
 
@@ -32,6 +32,19 @@ class SendlyError(Exception):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(code={self.code!r}, message={self.message!r})"
+
+    @property
+    def field_errors(self) -> List[Dict[str, Any]]:
+        """Per-field problems the API attached to this error, as
+        ``[{"path": ..., "message": ...}]``. Empty unless the response carried
+        an ``errors`` list (for example ``rcs_invalid_content``)."""
+        if self.response is None:
+            return []
+        extra = self.response.model_extra or {}
+        errors = extra.get("errors")
+        if not isinstance(errors, list):
+            return []
+        return [e for e in errors if isinstance(e, dict)]
 
     @classmethod
     def from_response(cls, status_code: int, response_data: Dict[str, Any]) -> "SendlyError":

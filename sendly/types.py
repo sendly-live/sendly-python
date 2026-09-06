@@ -2801,3 +2801,517 @@ class RcsMessage(BaseModel):
     )
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+# ============================================================================
+# RCS registration
+# ============================================================================
+
+
+class RcsCustomerStage(str, Enum):
+    """Where an RCS registration is in its lifecycle, from draft to live.
+
+    Serialized in ``RcsBrand.customer_stage``, ``RcsAgentDetail.customer_stage``
+    and the top-level ``stage`` on registration responses. Model fields keep the
+    plain string so a stage added later still parses; compare against these
+    members (``agent.customer_stage == RcsCustomerStage.TESTING``).
+    """
+
+    DRAFT = "draft"
+    IN_REVIEW = "in_review"
+    CHANGES_REQUESTED = "changes_requested"
+    REJECTED = "rejected"
+    BRAND_VERIFICATION = "brand_verification"
+    AGENT_REVIEW = "agent_review"
+    TESTING = "testing"
+    LAUNCH_REVIEW = "launch_review"
+    LAUNCHING = "launching"
+    LAUNCH_REJECTED = "launch_rejected"
+    LIVE = "live"
+    SUSPENDED = "suspended"
+    FAILED = "failed"
+
+
+class RcsReviewStatus(str, Enum):
+    """Review state of a brand or agent, serialized in ``review_status``"""
+
+    DRAFT = "draft"
+    AWAITING_REVIEW = "awaiting_review"
+    CHANGES_REQUESTED = "changes_requested"
+    APPROVED_FOR_CARRIER = "approved_for_carrier"
+    REJECTED = "rejected"
+    LAUNCH_REQUESTED = "launch_requested"
+    LAUNCH_SUBMITTED = "launch_submitted"
+    LAUNCH_REJECTED = "launch_rejected"
+    FAILED = "failed"
+
+
+class RcsBrandAddress(BaseModel):
+    """A brand's business address. Registration is open to US addresses"""
+
+    line1: Optional[str] = Field(default=None, description="Street address")
+    line2: Optional[str] = Field(default=None, description="Suite, floor, or unit")
+    city: Optional[str] = Field(default=None, description="City")
+    state: Optional[str] = Field(default=None, description="State or region")
+    postal_code: Optional[str] = Field(
+        default=None, alias="postalCode", description="Postal code"
+    )
+    country_code: Optional[str] = Field(
+        default=None,
+        alias="countryCode",
+        description="ISO 3166-1 alpha-2 country code; must be US",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsBrandContact(BaseModel):
+    """The person the review team can reach about a brand"""
+
+    first_name: Optional[str] = Field(default=None, alias="firstName", description="First name")
+    last_name: Optional[str] = Field(default=None, alias="lastName", description="Last name")
+    title: Optional[str] = Field(default=None, description="Job title")
+    email: Optional[str] = Field(default=None, description="Contact email")
+    phone_number: Optional[str] = Field(
+        default=None, alias="phoneNumber", description="Contact phone number in E.164 format"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsBrand(BaseModel):
+    """A business identity registered to send RCS"""
+
+    id: str = Field(..., description="Unique brand identifier - pass as brand_id on agents")
+    review_status: str = Field(
+        ...,
+        alias="reviewStatus",
+        description="Review state (see RcsReviewStatus): draft | awaiting_review | ...",
+    )
+    customer_stage: str = Field(
+        ...,
+        alias="customerStage",
+        description="Lifecycle stage derived from the brand alone (see RcsCustomerStage)",
+    )
+    display_name: str = Field(
+        ..., alias="displayName", description="The brand name recipients see"
+    )
+    legal_name: str = Field(..., alias="legalName", description="Legal business name")
+    legal_entity_type: str = Field(
+        ...,
+        alias="legalEntityType",
+        description=(
+            "LIMITED_LIABILITY_COMPANY | SOLE_PROPRIETORSHIP | PARTNERSHIP | "
+            "CORPORATION | S_CORPORATION; empty on a fresh draft"
+        ),
+    )
+    organization_type: str = Field(
+        ...,
+        alias="organizationType",
+        description=(
+            "PRIVATE_PROFIT | PUBLIC_PROFIT | NON_PROFIT | GOVERNMENT | UNKNOWN; "
+            "empty on a fresh draft"
+        ),
+    )
+    stock_symbol: Optional[str] = Field(
+        default=None,
+        alias="stockSymbol",
+        description="EXCHANGE:TICKER for publicly traded businesses, else None",
+    )
+    website_url: str = Field(..., alias="websiteUrl", description="Business website (https)")
+    ein: str = Field(..., description="Employer Identification Number")
+    address: RcsBrandAddress = Field(..., description="Business address")
+    contact: RcsBrandContact = Field(..., description="Review contact")
+    review_note: Optional[str] = Field(
+        default=None,
+        alias="reviewNote",
+        description="Note from the Sendly review, when changes were requested",
+    )
+    rejection_reason: Optional[str] = Field(
+        default=None,
+        alias="rejectionReason",
+        description="Why the carrier network rejected the brand, when it did",
+    )
+    submitted_for_review_at: Optional[str] = Field(
+        default=None,
+        alias="submittedForReviewAt",
+        description="When the brand was submitted for review (ISO 8601)",
+    )
+    sent_to_carrier_at: Optional[str] = Field(
+        default=None,
+        alias="sentToCarrierAt",
+        description="When the brand went to the carrier network (ISO 8601)",
+    )
+    verified_at: Optional[str] = Field(
+        default=None,
+        alias="verifiedAt",
+        description="When the carrier network verified the brand (ISO 8601)",
+    )
+    created_at: str = Field(
+        ..., alias="createdAt", description="When the brand was created (ISO 8601)"
+    )
+    updated_at: str = Field(
+        ..., alias="updatedAt", description="When the brand was last updated (ISO 8601)"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsBrandPrefill(BaseModel):
+    """Brand details Sendly already holds for the workspace, ready to prefill
+    ``client.rcs.brands.create()``. Only the keys on file are present."""
+
+    display_name: Optional[str] = Field(default=None, alias="displayName")
+    legal_name: Optional[str] = Field(default=None, alias="legalName")
+    legal_entity_type: Optional[str] = Field(default=None, alias="legalEntityType")
+    organization_type: Optional[str] = Field(default=None, alias="organizationType")
+    website_url: Optional[str] = Field(default=None, alias="websiteUrl")
+    ein: Optional[str] = Field(default=None)
+    stock_symbol: Optional[str] = Field(default=None, alias="stockSymbol")
+    address: Optional[RcsBrandAddress] = Field(default=None)
+    contact: Optional[RcsBrandContact] = Field(default=None)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsDossier(BaseModel):
+    """What Sendly can prefill into a new RCS brand"""
+
+    brand: RcsBrandPrefill = Field(..., description="Brand details on file (may be empty)")
+    us_eligible: bool = Field(
+        ...,
+        alias="usEligible",
+        description="False only when something on file names a non-US country",
+    )
+    source: str = Field(
+        ...,
+        description=(
+            "Where the details came from: tendlc (your newest 10DLC brand) | "
+            "verification (your active toll-free verification) | none"
+        ),
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsAgentPhoneNumber(BaseModel):
+    """A phone number shown on the agent's info sheet"""
+
+    number: Optional[str] = Field(default=None, description="E.164 number")
+    label: Optional[str] = Field(default=None, description="Label recipients see")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsAgentWebsite(BaseModel):
+    """A website shown on the agent's info sheet"""
+
+    url: Optional[str] = Field(default=None, description="https URL")
+    label: Optional[str] = Field(default=None, description="Label recipients see")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsAgentEmail(BaseModel):
+    """An email address shown on the agent's info sheet"""
+
+    address: Optional[str] = Field(default=None, description="Email address")
+    label: Optional[str] = Field(default=None, description="Label recipients see")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsAgentBasics(BaseModel):
+    """The agent's identity: name, use case, branding, and info-sheet links.
+
+    Media (``logo_url``, ``hero_url``) must be public https URLs; uploading
+    assets is a dashboard-only step.
+    """
+
+    display_name: Optional[str] = Field(
+        default=None, alias="displayName", description="The agent name recipients see"
+    )
+    use_case: Optional[str] = Field(
+        default=None,
+        alias="useCase",
+        description="MULTI_USE | PROMOTIONAL | TRANSACTIONAL | OTP",
+    )
+    hosting_region: Optional[str] = Field(
+        default=None,
+        alias="hostingRegion",
+        description="Set by Sendly; ignored on input",
+    )
+    description: Optional[str] = Field(
+        default=None, description="What the agent is for, shown to recipients"
+    )
+    logo_url: Optional[str] = Field(
+        default=None, alias="logoUrl", description="Public https URL of the logo"
+    )
+    hero_url: Optional[str] = Field(
+        default=None, alias="heroUrl", description="Public https URL of the hero image"
+    )
+    brand_color: Optional[str] = Field(
+        default=None, alias="brandColor", description="Accent color as #RGB or #RRGGBB"
+    )
+    privacy_policy_url: Optional[str] = Field(
+        default=None, alias="privacyPolicyUrl", description="https URL of the privacy policy"
+    )
+    terms_and_conditions_url: Optional[str] = Field(
+        default=None,
+        alias="termsAndConditionsUrl",
+        description="https URL of the terms and conditions",
+    )
+    phone_number: Optional[RcsAgentPhoneNumber] = Field(
+        default=None, alias="phoneNumber", description="Phone number on the info sheet"
+    )
+    website: Optional[RcsAgentWebsite] = Field(
+        default=None, description="Website on the info sheet"
+    )
+    email: Optional[RcsAgentEmail] = Field(default=None, description="Email on the info sheet")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsInteraction(BaseModel):
+    """One kind of conversation the agent will have"""
+
+    interaction_type: Optional[str] = Field(
+        default=None,
+        alias="interactionType",
+        description=(
+            "TRANSACTIONAL_UPDATES | CUSTOMER_SUPPORT | LOYALTY_OR_REWARD | "
+            "MARKETING_OR_PROMOTIONAL | ACCOUNT_ALERTS | TWO_WAY_CONVERSATION | OTHER"
+        ),
+    )
+    description: Optional[str] = Field(default=None, description="What that looks like")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsOptInMethod(BaseModel):
+    """One way recipients opt in to messages from the agent"""
+
+    method_type: Optional[str] = Field(
+        default=None,
+        alias="methodType",
+        description="SMS | WEBSITE | MOBILE_APP | QR_CODE | SALE_POINT | OTHER",
+    )
+    description: Optional[str] = Field(default=None, description="How the opt-in works")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsConsentSettings(BaseModel):
+    """How recipients consent to, and can leave, the agent's messages"""
+
+    opt_in_methods: Optional[List[RcsOptInMethod]] = Field(
+        default=None, alias="optInMethods", description="Opt-in methods"
+    )
+    call_to_action: Optional[str] = Field(
+        default=None, alias="callToAction", description="The opt-in call to action"
+    )
+    call_to_action_url: Optional[str] = Field(
+        default=None, alias="callToActionUrl", description="Where the call to action lives"
+    )
+    call_to_action_media_url: Optional[str] = Field(
+        default=None,
+        alias="callToActionMediaUrl",
+        description="Public https URL of a screenshot of the call to action",
+    )
+    double_opt_in: Optional[bool] = Field(
+        default=None, alias="doubleOptIn", description="Whether opt-in is confirmed"
+    )
+    double_opt_in_message: Optional[str] = Field(
+        default=None, alias="doubleOptInMessage", description="The confirmation message"
+    )
+    opt_in_message: Optional[str] = Field(
+        default=None, alias="optInMessage", description="Sent on opt-in"
+    )
+    help_response: Optional[str] = Field(
+        default=None, alias="helpResponse", description="Reply to a help request"
+    )
+    opt_out_response: Optional[str] = Field(
+        default=None, alias="optOutResponse", description="Reply to an opt-out"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsCampaign(BaseModel):
+    """What the agent sends, to whom, and with what consent - needed for launch"""
+
+    company_overview: Optional[str] = Field(
+        default=None, alias="companyOverview", description="About the business"
+    )
+    agent_overview: Optional[str] = Field(
+        default=None, alias="agentOverview", description="What the agent does"
+    )
+    additional_information: Optional[str] = Field(
+        default=None, alias="additionalInformation", description="Anything else reviewers need"
+    )
+    interactions: Optional[List[RcsInteraction]] = Field(
+        default=None, description="Kinds of conversation (at least one to launch)"
+    )
+    message_examples: Optional[List[str]] = Field(
+        default=None,
+        alias="messageExamples",
+        description="Example messages (at least three to launch)",
+    )
+    consent_settings: Optional[RcsConsentSettings] = Field(
+        default=None, alias="consentSettings", description="Consent settings"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsTesting(BaseModel):
+    """Evidence from testing the agent on an invited device"""
+
+    test_url: Optional[str] = Field(
+        default=None, alias="testUrl", description="Link to the test recording or screenshots"
+    )
+    message_id: Optional[str] = Field(
+        default=None, alias="messageId", description="Id of a test message that was delivered"
+    )
+    additional_information: Optional[str] = Field(
+        default=None, alias="additionalInformation", description="Notes for reviewers"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsTestDevice(BaseModel):
+    """A phone invited to message the agent before launch"""
+
+    id: str = Field(..., description="Unique device identifier")
+    phone_number: str = Field(..., alias="phoneNumber", description="E.164 number")
+    label: Optional[str] = Field(default=None, description="Who owns the device")
+    invite_status: Optional[str] = Field(
+        default=None,
+        alias="inviteStatus",
+        description="Invite state reported by the carrier network; None until invited",
+    )
+    created_at: str = Field(
+        ..., alias="createdAt", description="When the device was added (ISO 8601)"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsTestDeviceInput(BaseModel):
+    """A device to invite - pass to ``client.rcs.agents.set_test_devices()``"""
+
+    phone_number: str = Field(
+        ...,
+        alias="phoneNumber",
+        description="E.164 number, or a formatted 10-digit US number",
+    )
+    label: Optional[str] = Field(default=None, description="Who owns the device")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsAgentDetail(BaseModel):
+    """The full record of an RCS agent under registration"""
+
+    id: str = Field(..., description="Unique agent identifier")
+    brand_id: Optional[str] = Field(
+        default=None, alias="brandId", description="The brand the agent belongs to"
+    )
+    status: str = Field(
+        ...,
+        description="Send status: draft | submitted | testing | approved | suspended",
+    )
+    review_status: str = Field(
+        ...,
+        alias="reviewStatus",
+        description="Review state (see RcsReviewStatus)",
+    )
+    customer_stage: str = Field(
+        ...,
+        alias="customerStage",
+        description="Lifecycle stage derived with the brand (see RcsCustomerStage)",
+    )
+    display_name: str = Field(
+        ..., alias="displayName", description="The agent name recipients see"
+    )
+    use_case: Optional[str] = Field(
+        default=None,
+        alias="useCase",
+        description="MULTI_USE | PROMOTIONAL | TRANSACTIONAL | OTP, or None when not set",
+    )
+    hosting_region: Optional[str] = Field(
+        default=None, alias="hostingRegion", description="Set by Sendly"
+    )
+    basics: RcsAgentBasics = Field(..., description="Identity, branding, and info-sheet links")
+    campaign: Optional[RcsCampaign] = Field(
+        default=None, description="Campaign details, or None until provided"
+    )
+    testing: Optional[RcsTesting] = Field(
+        default=None, description="Testing evidence, or None until provided"
+    )
+    review_note: Optional[str] = Field(
+        default=None,
+        alias="reviewNote",
+        description="Note from the Sendly review, when changes were requested",
+    )
+    rejection_reason: Optional[str] = Field(
+        default=None,
+        alias="rejectionReason",
+        description="Why the carrier network rejected the agent, when it did",
+    )
+    test_devices: List[RcsTestDevice] = Field(
+        default_factory=list, alias="testDevices", description="Invited test devices"
+    )
+    submitted_for_review_at: Optional[str] = Field(
+        default=None, alias="submittedForReviewAt", description="ISO 8601"
+    )
+    basics_submitted_at: Optional[str] = Field(
+        default=None,
+        alias="basicsSubmittedAt",
+        description="When the basics went to the carrier network (ISO 8601)",
+    )
+    launch_submitted_at: Optional[str] = Field(
+        default=None,
+        alias="launchSubmittedAt",
+        description="When the launch went to the carrier network (ISO 8601)",
+    )
+    live_at: Optional[str] = Field(
+        default=None, alias="liveAt", description="When the agent went live (ISO 8601)"
+    )
+    created_at: str = Field(
+        ..., alias="createdAt", description="When the agent was created (ISO 8601)"
+    )
+    updated_at: str = Field(
+        ..., alias="updatedAt", description="When the agent was last updated (ISO 8601)"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RcsTestDeviceListResponse(BaseModel):
+    """Response from replacing an agent's test devices"""
+
+    devices: List[RcsTestDevice] = Field(..., description="The full list after the change")
+
+
+class RcsRegistration(BaseModel):
+    """The workspace's RCS registration at a glance"""
+
+    brand: Optional[RcsBrand] = Field(
+        default=None, description="The latest agent's brand, else the newest brand"
+    )
+    agent: Optional[RcsAgentDetail] = Field(default=None, description="The newest agent")
+    devices: List[RcsTestDevice] = Field(
+        default_factory=list, description="That agent's test devices"
+    )
+    stage: str = Field(
+        ..., description="Overall stage (see RcsCustomerStage); draft when nothing exists"
+    )
+    us_eligible: bool = Field(
+        ...,
+        alias="usEligible",
+        description="False only when something on file names a non-US country",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)

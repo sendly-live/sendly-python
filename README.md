@@ -655,11 +655,13 @@ client.whatsapp.senders.update_profile(
 
 Send branded, verified-sender messages on Android: rich cards, suggestion
 chips, and read receipts. Sending as your brand requires an RCS agent (the
-verified identity recipients see), registered per workspace through carrier
-review - contact support to register one. Text messages automatically fall back
-to SMS when the recipient's device or network doesn't support RCS (billed as
-SMS; suggestion chips are dropped); rich cards have no SMS form and respond 422
-instead. Requires a live API key.
+verified identity recipients see). Registration is self-serve, from the
+dashboard or from this SDK: you draft a brand and an agent, Sendly reviews
+them, then they go to the carrier network for verification (see
+[Registering an agent](#registering-an-agent) below). Text messages
+automatically fall back to SMS when the recipient's device or network doesn't
+support RCS (billed as SMS; suggestion chips are dropped); rich cards have no
+SMS form and respond 422 instead. Sending requires a live API key.
 
 ```python
 # Your registered agents ('testing' or 'approved' agents are sendable)
@@ -713,6 +715,88 @@ client.messages.send(
     fallback_to_sms=False,
 )
 ```
+
+### Registering an agent
+
+Registration needs an API key with the `rcs:read` / `rcs:write` scopes and is
+open to US businesses. It is rolling out gradually: until it is enabled for
+your account, every registration call raises `SendlyError` with code
+`rcs_not_enabled` (HTTP 404). Logo, hero image and call-to-action media must
+already be public `https://` URLs; uploading assets is a dashboard-only step.
+
+```python
+from sendly import RcsCustomerStage
+
+# 1. Prefill from what Sendly already knows (your 10DLC brand or toll-free verification)
+dossier = client.rcs.dossier.get()
+
+# 2. Draft the brand (nested address/contact accept dicts or RcsBrandAddress/RcsBrandContact)
+brand = client.rcs.brands.create(
+    display_name='Acme Coffee',
+    legal_name='Acme Holdings LLC',
+    legal_entity_type='LIMITED_LIABILITY_COMPANY',
+    organization_type='PRIVATE_PROFIT',
+    website_url='https://acme.example',
+    ein='12-3456789',
+    address={'line1': '1 Main St', 'city': 'Austin', 'state': 'TX',
+             'postal_code': '78701', 'country_code': 'US'},
+    contact={'first_name': 'Sam', 'last_name': 'Lee',
+             'email': 'sam@acme.example', 'phone_number': '+15551234567'},
+)
+
+# 3. Draft the agent under it
+agent = client.rcs.agents.create(
+    brand.id,
+    display_name='Acme Coffee',
+    use_case='MULTI_USE',
+    basics={
+        'description': 'Order updates and support for Acme customers',
+        'logo_url': 'https://acme.example/logo.png',
+        'hero_url': 'https://acme.example/hero.png',
+        'brand_color': '#5B3A29',
+        'privacy_policy_url': 'https://acme.example/privacy',
+        'terms_and_conditions_url': 'https://acme.example/terms',
+        'website': {'url': 'https://acme.example', 'label': 'Acme'},
+    },
+)
+
+# 4. Submit for review; poll the stage (SendlyError 'rcs_invalid_content'
+#    lists anything missing in e.field_errors)
+client.rcs.agents.submit(agent.id)
+registration = client.rcs.registration.get()
+print(registration.stage)  # 'in_review' -> 'brand_verification' -> 'agent_review' -> 'testing'
+
+# 5. Once in testing: invite devices, describe the campaign, then request launch
+if registration.stage == RcsCustomerStage.TESTING:
+    client.rcs.agents.set_test_devices(agent.id, [
+        '+15551234567',
+        {'phone_number': '+15557654321', 'label': 'Sam'},
+    ])
+    client.rcs.agents.update(
+        agent.id,
+        campaign={
+            'agent_overview': 'Order updates and support replies',
+            'interactions': [{'interaction_type': 'TRANSACTIONAL_UPDATES',
+                              'description': 'Shipping and delivery updates'}],
+            'message_examples': ['Your order #123 has shipped!',
+                                 'Your table is ready!',
+                                 'Reply HELP for help'],
+            'consent_settings': {
+                'opt_in_methods': [{'method_type': 'WEBSITE',
+                                    'description': 'Checkout checkbox'}],
+                'opt_out_response': 'You are unsubscribed.',
+            },
+        },
+    )
+    client.rcs.agents.request_launch(
+        agent.id, test_url='https://acme.example/rcs-test-recording'
+    )
+    # stage moves through 'launch_review' and 'launching' to 'live'
+```
+
+Writes accept an `idempotency_key` like the other write methods; `submit()` and
+`request_launch()` replays return the original response without notifying the
+reviewers again.
 
 ## Error Handling
 
@@ -957,6 +1041,56 @@ Assign a number you own to an active campaign, making the number sendable. Idemp
 #### `list_assignments() -> TenDlcAssignmentListResponse`
 
 List your number-to-campaign assignments.
+
+### `client.rcs`
+
+#### `agents.list() -> RcsAgentListResponse`
+
+List your RCS agents, newest first, with `sendable` telling you which can send now.
+
+#### `capability(to, agent_id=None) -> RcsCapability`
+
+Check whether a recipient can receive RCS (live key).
+
+#### `registration.get() -> RcsRegistration`
+
+The registration at a glance: newest brand, newest agent, its test devices, and the overall `stage` (`RcsCustomerStage`).
+
+#### `dossier.get() -> RcsDossier`
+
+Business details Sendly already holds for the workspace, to prefill `brands.create()`.
+
+#### `brands.create(display_name=None, legal_name=None, ..., address=None, contact=None, idempotency_key=None) -> RcsBrand`
+
+Draft a brand (US businesses only). Required fields are checked at submit, not here.
+
+#### `brands.update(id, ..., idempotency_key=None) -> RcsBrand`
+
+Edit a draft brand; only the fields you pass change. Locked while under review (`rcs_field_locked`).
+
+#### `agents.create(brand_id, display_name=None, use_case=None, basics=None, campaign=None, testing=None, idempotency_key=None) -> RcsAgentDetail`
+
+Draft an agent under a brand. Media must be public `https://` URLs.
+
+#### `agents.get(id) -> RcsAgentDetail`
+
+Fetch one agent with its `review_status`, `customer_stage`, `review_note` and `test_devices`.
+
+#### `agents.update(id, display_name=None, use_case=None, basics=None, campaign=None, testing=None, idempotency_key=None) -> RcsAgentDetail`
+
+Edit an agent; `campaign` and `testing` merge section-wise.
+
+#### `agents.set_test_devices(id, devices, idempotency_key=None) -> RcsTestDeviceListResponse`
+
+Replace the invited test devices (up to 20); entries are E.164 strings, dicts, or `RcsTestDeviceInput`.
+
+#### `agents.submit(id, idempotency_key=None) -> RcsAgentDetail`
+
+Submit the agent and its brand for review by Sendly, then the carrier network. `rcs_invalid_content` lists what is missing.
+
+#### `agents.request_launch(id, test_url=None, testing_additional_information=None, idempotency_key=None) -> RcsAgentDetail`
+
+Ask for the launch review once the agent is in `testing` and has been tried on an invited device.
 
 ## Enterprise
 
